@@ -1,100 +1,64 @@
 // Do not remove the include below
 #include "moonlight_lamp.h"
-
-//#define DEBUG
-#ifdef DEBUG
-#	define DEBUG_PRINT(x) Serial.print(x)
-#	define DEBUG_PRINTLN(x) Serial.println(x)
-#else
-#	define DEBUG_PRINT(x)
-#	define DEBUG_PRINTLN(x)
-#endif
-
-const byte FRONTLED = 3;
-const byte BACKLED = 11;
-const byte SWITCH = 7;
-
-//const byte MICRO_STEPPING = 8;
-//const float FULL_STEP = 7.5;
-//const float MICRO_STEP = 0.9375f;	// STEP / MICRO_STEPPING;
-//const int FULL_STEPS = 48;				// 360 / STEP
-const int FULL_TURN = 384;		// 360 / MICRO_STEP
-const int HALF = 192; // FULL_TURN / 2
-const int QUARTER = 96; // FULL_TURN / 4
-
-const byte STEPPIN = 4;
-const byte DIRPIN = 2;
+#include "moonlight_features.h"
+#include "moonlight_level_tables.h"
+#include "moonlight_coreography.h"
 
 const byte RESET_IDX = 255;
 
-enum direction_t {
-	COUNTER_CLOCKWISE = -1, CLOCKWISE = 1, WAIT = 0
-};
+unsigned int current_position = 0;
 
-struct ControlPoint {
-	direction_t direction;
-	int position;
-	int duration;
+unsigned int to_led_level(byte position) {
+	unsigned int level = LEVEL_MAP[position];
 
-	ControlPoint(direction_t dir, int pos, int dur) {
-		direction = dir;
-		duration = dur;
-		position = pos;
-	}
-	;
-};
+	DEBUG_PRINT("## to_led_level ##\t");
+	DEBUG_PRINT("Position: ");
+	DEBUG_PRINT(position);
+	DEBUG_PRINT("; Level: ");
+	DEBUG_PRINTLN(level);
 
-ControlPoint POINTS[] = {
-		ControlPoint(CLOCKWISE, 3 * QUARTER, 3000),
-		ControlPoint(WAIT, 0, 2000),
-		ControlPoint(COUNTER_CLOCKWISE, HALF, 200),
-		ControlPoint(WAIT, 0, 2000),
-		ControlPoint(CLOCKWISE, QUARTER, 2000),
-		ControlPoint(COUNTER_CLOCKWISE, 0, 1000),
-		ControlPoint(WAIT, 0, 5000)
-};
+	return level;
+}
 
-const byte POINTS_LEN = (sizeof(POINTS) / sizeof(*POINTS));
+void update_led_levels() {
+	byte front_pos = current_position < HALF ? current_position : FULL_TURN - current_position;
+	unsigned int front = to_led_level(front_pos);
+	unsigned int back = to_led_level(HALF - front_pos);
 
-int current_postion = 0;
+	OCR1A = front;
+	OCR1B = back;
 
-void set_led_levels(byte level) {
-	OCR2A = level;
-	OCR2B = HALF - level;
+	DEBUG_PRINT("## update_led levels ##\t");
+	DEBUG_PRINT("OCR1A: ");
+	DEBUG_PRINT(OCR1A);
+	DEBUG_PRINT("; OCR1B: ");
+	DEBUG_PRINTLN(OCR1B);
+}
 
-//	Serial.print("OCR2A: ");
-//	Serial.print(OCR2A);
-//	Serial.print("; OCR2B: ");
-//	Serial.println(OCR2B);
+void sleep_stepper(boolean sleep) {
+	digitalWrite(SLEEP, (sleep ? LOW : HIGH));
 }
 
 void step(direction_t direction) {
-	digitalWrite(DIRPIN, direction == CLOCKWISE ? HIGH : LOW);
-	digitalWrite(STEPPIN, HIGH);
-	digitalWrite(STEPPIN, LOW);
-	current_postion += direction;
-	if (current_postion == -1) {
-		current_postion = FULL_TURN - 1;
-	} else if (current_postion == FULL_TURN) {
-		current_postion = 0;
+	sleep_stepper(false);
+	digitalWrite(DIR, direction == CLOCKWISE ? HIGH : LOW);
+	digitalWrite(STEP, HIGH);
+	digitalWrite(STEP, LOW);
+	current_position += direction;
+
+	if (current_position == -1) {
+		current_position = FULL_TURN - 1;
+	} else if (current_position == FULL_TURN) {
+		current_position = 0;
 	}
 }
 
 void setup_stepper() {
-	pinMode(STEPPIN, OUTPUT);
-	pinMode(DIRPIN, OUTPUT);
-	digitalWrite(DIRPIN, LOW);
-}
-
-byte position_to_level(int position) {
-	byte level = position <= HALF - 1 ? position : FULL_TURN - position;
-
-//	Serial.print("Position: ");
-//	Serial.print(position);
-//	Serial.print("; Level: ");
-//	Serial.println(level);
-
-	return level;
+	pinMode(STEP, OUTPUT);
+	pinMode(DIR, OUTPUT);
+	pinMode(SLEEP, OUTPUT);
+	sleep_stepper(false);
+	digitalWrite(DIR, LOW);
 }
 
 // prescale 8, Phase Correct, 8bit ~ 3.9 kHz
@@ -102,37 +66,69 @@ void setup_leds() {
 	pinMode(FRONTLED, OUTPUT);
 	pinMode(BACKLED, OUTPUT);
 	// prescale 8, Phase Correct, 8bit ~ 3.9 kHz
-	TCCR2A = _BV(WGM20) | _BV(COM2A1) | _BV(COM2B1);
-	TCCR2B = _BV(CS21);
+	TCCR1A = _BV(WGM11) | _BV(WGM10) | _BV(COM1A1) | _BV(COM1B1);
+	TCCR1B = _BV(WGM12) | _BV(CS11);
 
-	set_led_levels(position_to_level(current_postion));
+	update_led_levels();
 }
 
 void setup_switch() {
 	pinMode(SWITCH, INPUT_PULLUP);
 }
 
+#ifdef MEASURE_TMP
+
+unsigned long trigger_tmp = 0;
+
+void setup_tmp() {
+	pinMode(TMP, INPUT);
+}
+
+float get_temp(byte read_times) {
+	// converting from a 0 to 1024 digital range
+	// to 0 to 5 volts (each 1 reading equals ~ 5 millivolts
+
+	analogRead(TMP);// discard first reading in the loop
+	float result = 0.0f;
+	for (byte i = 0; i < read_times; i++) {
+		result += (float) analogRead(TMP);
+	}
+	result /= (float) read_times;
+
+	result *= 4.8828125f;
+	result = (result - 480.0f) / 10.0f;
+	return result;
+}
+#endif
+
 void setup() {
 	setup_leds();
 	setup_stepper();
 	setup_switch();
 
+#ifdef MEASURE_TMP
+	setup_tmp();
+#endif
+
+#if defined MEASURE_TMP || defined DEBUG
 	Serial.begin(115200);
 	Serial.println("Started");
+#endif
 }
 
 int calc_steps(int from, int to, direction_t direction) {
 	int steps = direction * (to - from);
 	steps = steps >= 0 ? steps : FULL_TURN + steps;
 
-//	Serial.print("From: ");
-//	Serial.print(from);
-//	Serial.print("; To: ");
-//	Serial.print(to);
-//	Serial.print("; Dir: ");
-//	Serial.print(direction);
-//	Serial.print("; Steps: ");
-//	Serial.println(steps);
+	DEBUG_PRINT("## calc_steps ##\t");
+	DEBUG_PRINT("From: ");
+	DEBUG_PRINT(from);
+	DEBUG_PRINT("; To: ");
+	DEBUG_PRINT(to);
+	DEBUG_PRINT("; Dir: ");
+	DEBUG_PRINT(direction);
+	DEBUG_PRINT("; Steps: ");
+	DEBUG_PRINTLN(steps);
 
 	return steps;
 }
@@ -141,12 +137,13 @@ unsigned long calc_delay_us(int steps, int duration) {
 	unsigned long duration_micros = (((unsigned long) duration) * 1000ul);
 	unsigned long delay = max(150, steps == 0 ? duration_micros : duration_micros / steps);
 
-//	Serial.print("Steps: ");
-//	Serial.print(steps);
-//	Serial.print("; Duration: ");
-//	Serial.print(duration);
-//	Serial.print("; Delay: ");
-//	Serial.println(delay);
+	DEBUG_PRINT("## calc_delay_us ##\t");
+	DEBUG_PRINT("Steps: ");
+	DEBUG_PRINT(steps);
+	DEBUG_PRINT("; Duration: ");
+	DEBUG_PRINT(duration);
+	DEBUG_PRINT("; Delay: ");
+	DEBUG_PRINTLN(delay);
 
 	return delay;
 }
@@ -159,13 +156,13 @@ unsigned long trigger_micros = 0;
 unsigned long elapsed_micros = 0;
 
 unsigned long delay_micros = calc_delay_us(
-		calc_steps(current_postion, current_point.position, current_point.direction),
+		calc_steps(current_position, current_point.position, current_point.direction),
 		current_point.duration);
 
 boolean reset_done = false;
 
 boolean at_postion() {
-	return current_point.direction == WAIT ? true : current_point.position == current_postion;
+	return current_point.direction == WAIT ? true : current_point.position == current_position;
 }
 
 boolean delay_reached() {
@@ -185,49 +182,55 @@ boolean delay_reached() {
 void set_point(ControlPoint point) {
 	trigger_micros = current_micros;
 	current_point = point;
-	int steps = calc_steps(current_postion, current_point.position, current_point.direction);
+	int steps = calc_steps(current_position, current_point.position, current_point.direction);
 	delay_micros = calc_delay_us(steps, current_point.duration);
 
-//	Serial.print("ControlPoint(");
-//	Serial.print(current_point.direction);
-//	Serial.print(", ");
-//	Serial.print(current_point.position);
-//	Serial.print(", ");
-//	Serial.print(current_point.duration);
-//	Serial.println(")");
-//	Serial.print("Trigger ");
-//	Serial.print(trigger_micros);
-//	Serial.print(" Delay ");
-//	Serial.print(delay_micros);
-//	Serial.print(" Steps ");
-//	Serial.println(steps);
+	DEBUG_PRINT("## set_point ##\t");
+	DEBUG_PRINT("ControlPoint(");
+	DEBUG_PRINT(current_point.direction);
+	DEBUG_PRINT(", ");
+	DEBUG_PRINT(current_point.position);
+	DEBUG_PRINT(", ");
+	DEBUG_PRINT(current_point.duration);
+	DEBUG_PRINTLN(")");
+	DEBUG_PRINT("Trigger ");
+	DEBUG_PRINT(trigger_micros);
+	DEBUG_PRINT(" Delay ");
+	DEBUG_PRINT(delay_micros);
+	DEBUG_PRINT(" Steps ");
+	DEBUG_PRINTLN(steps);
 }
 
 void next_point() {
 	if (current_point_idx == RESET_IDX) {
-//		Serial.println("Reset done!");
+		DEBUG_PRINTLN("Reset done!");
 		reset_done = true;
 		return;
 	}
 	current_point_idx = current_point_idx == POINTS_LEN - 1 ? 0 : current_point_idx + 1;
 	set_point(POINTS[current_point_idx]);
 
-//	Serial.print("Point ");
-//	Serial.print(current_point_idx);
-//	Serial.print(" on ");
-//	Serial.println(current_micros);
+	DEBUG_PRINT("## next_point ##\t");
+	DEBUG_PRINT("Point ");
+	DEBUG_PRINT(current_point_idx);
+	DEBUG_PRINT(" on ");
+	DEBUG_PRINTLN(current_micros);
 }
 
 void take_step() {
 	trigger_micros = current_micros;
 	step(current_point.direction);
-	set_led_levels(current_postion);
+	update_led_levels();
 	if (at_postion()) {
+		if (current_position % 8 == 0) {
+			sleep_stepper(true);
+		}
 		next_point();
 	}
 
-//	Serial.print("Step; At position ");
-//	Serial.println(current_postion);
+	DEBUG_PRINT("## take_step ##\t");
+	DEBUG_PRINT("Step; At position ");
+	DEBUG_PRINTLN(current_position);
 }
 
 boolean reset_switch_pressed() {
@@ -251,9 +254,17 @@ void loop() {
 	}
 
 	if (reset_switch_pressed() and current_point_idx != RESET_IDX) {
-//		Serial.println("Switch pressed");
+		DEBUG_PRINTLN("Switch pressed");
 
 		current_point_idx = RESET_IDX;
 		set_point(ControlPoint(CLOCKWISE, 0, 500));
 	}
+
+#ifdef MEASURE_TMP
+	if (current_micros - trigger_tmp > 1000000) {
+		trigger_tmp = current_micros;
+		DEBUG_PRINT("Temperature: ");
+		DEBUG_PRINTLN(get_temp(5));
+	}
+#endif
 }

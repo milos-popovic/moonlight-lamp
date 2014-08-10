@@ -9,24 +9,15 @@
 #define MOONLIGHT_FEATURES_H_
 
 // Feature Consts
-//#define DEBUG
-//#define MEASURE_TMP
-//#define NON_LINEAR
+#define NON_LINEAR
+
 #define LAMP 0 // Test
 //#define LAMP 1 // SMALL
 //#define LAMP 2 // MEDIUM
 //#define LAMP 3 // LARGE
 
-// PINOUT
-const byte SLEEP = 8;
-const byte FRONTLED = 9;
-const byte BACKLED = 10;
-const byte SWITCH = 11;
-const byte STEP = 12;
-const byte DIR = 13;
-#ifdef MEASURE_TMP
-const byte TMP = A0;
-#endif
+//#define DEBUG
+//#define MEASURE_TMP
 
 #ifdef DEBUG
 #	define DEBUG_PRINT(x) Serial.print(x)

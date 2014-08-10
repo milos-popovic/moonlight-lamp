@@ -8,6 +8,19 @@
 #ifndef MOONLIGHT_TYPES_H_
 #define MOONLIGHT_TYPES_H_
 
+// PINOUT
+const byte SLEEP = 8;
+const byte FRONTLED = 9;
+const byte BACKLED = 10;
+const byte SWITCH = 11;
+const byte STEP = 12;
+const byte DIR = 13;
+const byte TMP = A0;
+
+enum power_state_t {
+	TURNED_ON = 1, TURNED_OFF = 0, TURNING_OFF = 2
+};
+
 enum direction_t {
 	COUNTER_CLOCKWISE = -1, CLOCKWISE = 1, WAIT = 0
 };

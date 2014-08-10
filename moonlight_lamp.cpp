@@ -1,12 +1,22 @@
 // Do not remove the include below
 #include "moonlight_lamp.h"
-#include "moonlight_features.h"
-#include "moonlight_level_tables.h"
-#include "moonlight_coreography.h"
-
-const byte RESET_IDX = 255;
 
 unsigned int current_position = 0;
+
+power_state_t power_state = TURNED_OFF;
+byte current_point_idx = 0;
+ControlPoint current_point = POINTS[current_point_idx];
+boolean reset_done = false;
+
+unsigned long current_micros = 0;
+unsigned long trigger_micros = 0;
+unsigned long elapsed_micros = 0;
+unsigned long switch_trigger = 0;
+boolean last_button_state = false;
+
+unsigned long delay_micros = calc_delay_us(
+		calc_steps(current_position, current_point.position, current_point.direction),
+		current_point.duration);
 
 unsigned int to_led_level(byte position) {
 	unsigned int level = LEVEL_MAP[position];
@@ -21,6 +31,11 @@ unsigned int to_led_level(byte position) {
 }
 
 void update_led_levels() {
+	if (power_state == TURNED_OFF) {
+		OCR1A = 0;
+		OCR1B = 0;
+		return;
+	}
 	byte front_pos = current_position < HALF ? current_position : FULL_TURN - current_position;
 	unsigned int front = to_led_level(front_pos);
 	unsigned int back = to_led_level(HALF - front_pos);
@@ -58,6 +73,8 @@ void setup_stepper() {
 	pinMode(DIR, OUTPUT);
 	pinMode(SLEEP, OUTPUT);
 	sleep_stepper(false);
+	delay(100);
+	sleep_stepper(true);
 	digitalWrite(DIR, LOW);
 }
 
@@ -112,7 +129,7 @@ void setup() {
 
 #if defined MEASURE_TMP || defined DEBUG
 	Serial.begin(115200);
-	Serial.println("Started");
+	DEBUG_PRINTLN("Started");
 #endif
 }
 
@@ -147,19 +164,6 @@ unsigned long calc_delay_us(int steps, int duration) {
 
 	return delay;
 }
-
-byte current_point_idx = 0;
-ControlPoint current_point = POINTS[current_point_idx];
-
-unsigned long current_micros = 0;
-unsigned long trigger_micros = 0;
-unsigned long elapsed_micros = 0;
-
-unsigned long delay_micros = calc_delay_us(
-		calc_steps(current_position, current_point.position, current_point.direction),
-		current_point.duration);
-
-boolean reset_done = false;
 
 boolean at_postion() {
 	return current_point.direction == WAIT ? true : current_point.position == current_position;
@@ -202,11 +206,6 @@ void set_point(ControlPoint point) {
 }
 
 void next_point() {
-	if (current_point_idx == RESET_IDX) {
-		DEBUG_PRINTLN("Reset done!");
-		reset_done = true;
-		return;
-	}
 	current_point_idx = current_point_idx == POINTS_LEN - 1 ? 0 : current_point_idx + 1;
 	set_point(POINTS[current_point_idx]);
 
@@ -221,11 +220,8 @@ void take_step() {
 	trigger_micros = current_micros;
 	step(current_point.direction);
 	update_led_levels();
-	if (at_postion()) {
-		if (current_position % 8 == 0) {
-			sleep_stepper(true);
-		}
-		next_point();
+	if (at_postion() and (current_position % 8 == 0)) {
+		sleep_stepper(true);
 	}
 
 	DEBUG_PRINT("## take_step ##\t");
@@ -233,35 +229,67 @@ void take_step() {
 	DEBUG_PRINTLN(current_position);
 }
 
-boolean reset_switch_pressed() {
-	return !((boolean) digitalRead(SWITCH));
+boolean switch_pressed() {
+	boolean state = !((boolean) digitalRead(SWITCH));
+	boolean pressed = state and not last_button_state;
+
+	if (pressed) {
+		if ((current_micros - switch_trigger) < 1000000ul) {
+			return false;
+		}
+		switch_trigger = current_micros;
+	}
+	return pressed;
 }
 
 void loop() {
-	if (reset_done) {
-		return;
-	}
-
 	current_micros = micros();
 	elapsed_micros = current_micros - trigger_micros;
 
+	if (switch_pressed() and power_state != TURNING_OFF) {
+		DEBUG_PRINTLN("Switch pressed");
+
+		if (power_state == TURNED_ON) {
+			DEBUG_PRINTLN("Turning OFF");
+			trigger_micros = current_micros;
+			power_state = TURNING_OFF;
+			current_point_idx = 0;
+			set_point(ControlPoint(CLOCKWISE, 0, 500));
+			return;
+		} else {
+			DEBUG_PRINTLN("Turning ON");
+			trigger_micros = current_micros;
+//			sleep_stepper(false);
+//			delay(100);
+//			sleep_stepper(true);
+			power_state = TURNED_ON;
+			set_point(POINTS[current_point_idx]);
+			update_led_levels();
+			return;
+		}
+	}
+
+	if (power_state == TURNED_OFF) {
+		return;
+	}
+
 	if (delay_reached()) {
 		if (at_postion()) {
+			if (power_state == TURNING_OFF) {
+				DEBUG_PRINTLN("Turned OFF");
+				trigger_micros = current_micros;
+				power_state = TURNED_OFF;
+				update_led_levels();
+				return;
+			}
 			next_point();
 		} else {
 			take_step();
 		}
 	}
 
-	if (reset_switch_pressed() and current_point_idx != RESET_IDX) {
-		DEBUG_PRINTLN("Switch pressed");
-
-		current_point_idx = RESET_IDX;
-		set_point(ControlPoint(CLOCKWISE, 0, 500));
-	}
-
 #ifdef MEASURE_TMP
-	if (current_micros - trigger_tmp > 1000000) {
+	if (current_micros - trigger_tmp > 1000000ul) {
 		trigger_tmp = current_micros;
 		DEBUG_PRINT("Temperature: ");
 		DEBUG_PRINTLN(get_temp(5));

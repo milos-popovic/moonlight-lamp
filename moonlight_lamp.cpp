@@ -217,8 +217,6 @@ void take_step() {
 	if (at_postion() and (current_position % 8 == 0)) {
 		sleep_trigger = current_micros;
 		go_to_sleep = true;
-//		delay(2500);
-//		sleep_stepper(true);
 	}
 
 	DEBUG_PRINT("## take_step ##\t");

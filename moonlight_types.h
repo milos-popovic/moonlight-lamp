@@ -36,9 +36,9 @@ const byte QUARTER = 96; // FULL_TURN / 4
 struct ControlPoint {
 	direction_t direction;
 	int position;
-	int duration;
+	unsigned long duration;
 
-	ControlPoint(direction_t dir, int pos, int dur) {
+	ControlPoint(direction_t dir, int pos, unsigned long dur) {
 		direction = dir;
 		duration = dur;
 		position = pos;

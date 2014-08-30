@@ -12,11 +12,13 @@ unsigned long current_micros = 0;
 unsigned long trigger_micros = 0;
 unsigned long elapsed_micros = 0;
 unsigned long switch_trigger = 0;
+unsigned long sleep_trigger = 0;
+const unsigned int sleep_delay = 1500;
+boolean go_to_sleep = false;
+
 boolean last_button_state = false;
 
-unsigned long delay_micros = calc_delay_us(
-		calc_steps(current_position, current_point.position, current_point.direction),
-		current_point.duration);
+unsigned long delay_micros = 0;
 
 unsigned int to_led_level(byte position) {
 	unsigned int level = LEVEL_MAP[position];
@@ -36,9 +38,9 @@ void update_led_levels() {
 		OCR1B = 0;
 		return;
 	}
-	byte front_pos = current_position < HALF ? current_position : FULL_TURN - current_position;
-	unsigned int front = to_led_level(front_pos);
-	unsigned int back = to_led_level(HALF - front_pos);
+	byte back_pos = current_position < HALF ? current_position : FULL_TURN - current_position;
+	unsigned int front = to_led_level(HALF - back_pos);
+	unsigned int back = to_led_level(back_pos);
 
 	OCR1A = front;
 	OCR1B = back;
@@ -78,19 +80,26 @@ void setup_stepper() {
 	digitalWrite(DIR, LOW);
 }
 
-// prescale 8, Phase Correct, 8bit ~ 3.9 kHz
 void setup_leds() {
 	pinMode(FRONTLED, OUTPUT);
 	pinMode(BACKLED, OUTPUT);
-	// prescale 8, Phase Correct, 8bit ~ 3.9 kHz
+	// timer1, prescale 8, Fast, 10bit ~ 1.9 kHz
+//	TCCR1A = _BV(WGM11) | _BV(WGM10) | _BV(COM1A1) | _BV(COM1B1);
+//	TCCR1B = _BV(WGM12) | _BV(CS11);
+
+// timer1, prescale 8, Phase Corrected, 10bit ~ 976 Hz
 	TCCR1A = _BV(WGM11) | _BV(WGM10) | _BV(COM1A1) | _BV(COM1B1);
-	TCCR1B = _BV(WGM12) | _BV(CS11);
+	TCCR1B = _BV(CS11);
 
 	update_led_levels();
 }
 
 void setup_switch() {
+#ifdef PULL_DOWN
+	pinMode(SWITCH, INPUT);
+#else
 	pinMode(SWITCH, INPUT_PULLUP);
+#endif
 }
 
 #ifdef MEASURE_TMP
@@ -118,21 +127,6 @@ float get_temp(byte read_times) {
 }
 #endif
 
-void setup() {
-	setup_leds();
-	setup_stepper();
-	setup_switch();
-
-#ifdef MEASURE_TMP
-	setup_tmp();
-#endif
-
-#if defined MEASURE_TMP || defined DEBUG
-	Serial.begin(115200);
-	DEBUG_PRINTLN("Started");
-#endif
-}
-
 int calc_steps(int from, int to, direction_t direction) {
 	int steps = direction * (to - from);
 	steps = steps >= 0 ? steps : FULL_TURN + steps;
@@ -150,8 +144,8 @@ int calc_steps(int from, int to, direction_t direction) {
 	return steps;
 }
 
-unsigned long calc_delay_us(int steps, int duration) {
-	unsigned long duration_micros = (((unsigned long) duration) * 1000ul);
+unsigned long calc_delay_us(int steps, unsigned long duration) {
+	unsigned long duration_micros = duration * 1000ul;
 	unsigned long delay = max(150, steps == 0 ? duration_micros : duration_micros / steps);
 
 	DEBUG_PRINT("## calc_delay_us ##\t");
@@ -221,7 +215,10 @@ void take_step() {
 	step(current_point.direction);
 	update_led_levels();
 	if (at_postion() and (current_position % 8 == 0)) {
-		sleep_stepper(true);
+		sleep_trigger = current_micros;
+		go_to_sleep = true;
+//		delay(2500);
+//		sleep_stepper(true);
 	}
 
 	DEBUG_PRINT("## take_step ##\t");
@@ -230,7 +227,12 @@ void take_step() {
 }
 
 boolean switch_pressed() {
+#ifdef PULL_DOWN
+	boolean state = digitalRead(SWITCH);
+#else
 	boolean state = !((boolean) digitalRead(SWITCH));
+#endif
+
 	boolean pressed = state and not last_button_state;
 
 	if (pressed) {
@@ -242,35 +244,86 @@ boolean switch_pressed() {
 	return pressed;
 }
 
-void loop() {
-	current_micros = micros();
-	elapsed_micros = current_micros - trigger_micros;
+void turn_off()
+{
+	DEBUG_PRINTLN("Turning OFF");
+	trigger_micros = current_micros;
+	power_state = TURNING_OFF;
+	current_point_idx = 0;
+	int clockwise_steps = calc_steps(current_position, 0, CLOCKWISE);
+	int counter_clocwise_steps = calc_steps(current_position, 0, COUNTER_CLOCKWISE);
+	direction_t best_direction = clockwise_steps <= counter_clocwise_steps ? CLOCKWISE : COUNTER_CLOCKWISE;
+	int steps = clockwise_steps <= counter_clocwise_steps ? clockwise_steps : counter_clocwise_steps;
+	int duration = steps * 10;
+	set_point(ControlPoint(best_direction, 0, duration));
+}
 
+void turn_on()
+{
+	DEBUG_PRINTLN("Turning ON");
+	trigger_micros = current_micros;
+	power_state = TURNED_ON;
+	set_point(POINTS[current_point_idx]);
+	update_led_levels();
+}
+
+boolean handle_switch() {
 	if (switch_pressed() and power_state != TURNING_OFF) {
 		DEBUG_PRINTLN("Switch pressed");
 
 		if (power_state == TURNED_ON) {
-			DEBUG_PRINTLN("Turning OFF");
-			trigger_micros = current_micros;
-			power_state = TURNING_OFF;
-			current_point_idx = 0;
-			set_point(ControlPoint(CLOCKWISE, 0, 500));
-			return;
+			turn_off();
+			return true;
 		} else {
-			DEBUG_PRINTLN("Turning ON");
-			trigger_micros = current_micros;
-//			sleep_stepper(false);
-//			delay(100);
-//			sleep_stepper(true);
-			power_state = TURNED_ON;
-			set_point(POINTS[current_point_idx]);
-			update_led_levels();
-			return;
+			turn_on();
+			return true;
 		}
 	}
 
 	if (power_state == TURNED_OFF) {
+		return true;
+	}
+
+	return false;
+}
+
+void setup() {
+#if defined MEASURE_TMP || defined DEBUG
+	int baud_rate = 28800;
+	Serial.begin(baud_rate);
+	DEBUG_PRINT("Started at ");
+	DEBUG_PRINTLN(baud_rate);
+#endif
+
+	delay_micros = calc_delay_us(
+			calc_steps(current_position, current_point.position, current_point.direction),
+			current_point.duration);
+
+	setup_leds();
+	setup_stepper();
+	setup_switch();
+
+//	turn_on();
+
+#ifdef MEASURE_TMP
+	setup_tmp();
+#endif
+}
+
+void loop0() {
+}
+
+void loop() {
+	current_micros = micros();
+	elapsed_micros = current_micros - trigger_micros;
+
+	if (handle_switch()) {
 		return;
+	}
+
+	if (go_to_sleep and ((current_micros - sleep_trigger) >= sleep_delay)) {
+		sleep_stepper(true);
+		go_to_sleep = false;
 	}
 
 	if (delay_reached()) {

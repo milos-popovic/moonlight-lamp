@@ -13,93 +13,93 @@
 #if LAMP == 0 // Test
 
 ControlPoint POINTS[] = {
-		ControlPoint(WAIT, 0, 3000),
-		ControlPoint(CLOCKWISE, QUARTER, 2000),
-		ControlPoint(WAIT, 0, 3000),
-		ControlPoint(CLOCKWISE, HALF, 2000),
-		ControlPoint(WAIT, 0, 3000),
-		ControlPoint(CLOCKWISE, 3 * QUARTER, 2000),
-		ControlPoint(WAIT, 0, 3000),
-		ControlPoint(CLOCKWISE, 0, 2000),
-		ControlPoint(WAIT, 0, 3000),
+		ControlPoint(WAIT, 0, 3000ul),
+		ControlPoint(CLOCKWISE, QUARTER, 2000ul),
+		ControlPoint(WAIT, 0, 3000ul),
+		ControlPoint(CLOCKWISE, HALF, 2000ul),
+		ControlPoint(WAIT, 0, 3000ul),
+		ControlPoint(CLOCKWISE, 3 * QUARTER, 2000ul),
+		ControlPoint(WAIT, 0, 3000ul),
+		ControlPoint(CLOCKWISE, 0, 2000ul),
+		ControlPoint(WAIT, 0, 3000ul),
 
-		ControlPoint(COUNTER_CLOCKWISE, 3 * QUARTER, 2000),
-		ControlPoint(WAIT, 0, 3000),
-		ControlPoint(COUNTER_CLOCKWISE, HALF, 2000),
-		ControlPoint(WAIT, 0, 3000),
-		ControlPoint(COUNTER_CLOCKWISE, QUARTER, 2000),
-		ControlPoint(WAIT, 0, 3000),
-		ControlPoint(COUNTER_CLOCKWISE, 0, 2000),
-		ControlPoint(WAIT, 0, 3000)
+		ControlPoint(COUNTER_CLOCKWISE, 3 * QUARTER, 2000ul),
+		ControlPoint(WAIT, 0, 3000ul),
+		ControlPoint(COUNTER_CLOCKWISE, HALF, 2000ul),
+		ControlPoint(WAIT, 0, 3000ul),
+		ControlPoint(COUNTER_CLOCKWISE, QUARTER, 2000ul),
+		ControlPoint(WAIT, 0, 3000ul),
+		ControlPoint(COUNTER_CLOCKWISE, 0, 2000ul),
+		ControlPoint(WAIT, 0, 3000ul)
 };
 
 #elif LAMP == 1 // Small
 
 ControlPoint POINTS[] = {
-	ControlPoint(WAIT, 0, 3000),
-	ControlPoint(CLOCKWISE, HALF, 4000),
-	ControlPoint(WAIT, 0, 48000),
+	ControlPoint(WAIT, 0, 3000ul),
+	ControlPoint(CLOCKWISE, HALF, 4000ul),
+	ControlPoint(WAIT, 0, 48000ul),
 
-	ControlPoint(COUNTER_CLOCKWISE, QUARTER, 2000),
-	ControlPoint(WAIT, 0, 3000),
-	ControlPoint(COUNTER_CLOCKWISE, 3 * QUARTER, 4000),
-	ControlPoint(WAIT, 0, 3000),
-	ControlPoint(CLOCKWISE, 0, 2000),
-	ControlPoint(WAIT, 0, 10000),
+	ControlPoint(COUNTER_CLOCKWISE, QUARTER, 2000ul),
+	ControlPoint(WAIT, 0, 3000ul),
+	ControlPoint(COUNTER_CLOCKWISE, 3 * QUARTER, 4000ul),
+	ControlPoint(WAIT, 0, 3000ul),
+	ControlPoint(CLOCKWISE, 0, 2000ul),
+	ControlPoint(WAIT, 0, 10000ul),
 
-	ControlPoint(CLOCKWISE, HALF, 4000),
-	ControlPoint(WAIT, 0, 3000),
-	ControlPoint(CLOCKWISE, 0, 2000),
-	ControlPoint(WAIT, 0, 3000),
-	ControlPoint(CLOCKWISE, HALF, 4000),
-	ControlPoint(WAIT, 0, 3000),
-	ControlPoint(CLOCKWISE, 0, 4000),
-	ControlPoint(WAIT, 0, 7000)
+	ControlPoint(CLOCKWISE, HALF, 4000ul),
+	ControlPoint(WAIT, 0, 3000ul),
+	ControlPoint(CLOCKWISE, 0, 2000ul),
+	ControlPoint(WAIT, 0, 3000ul),
+	ControlPoint(CLOCKWISE, HALF, 4000ul),
+	ControlPoint(WAIT, 0, 3000ul),
+	ControlPoint(CLOCKWISE, 0, 4000ul),
+	ControlPoint(WAIT, 0, 7000ul)
 };
 
 #elif LAMP == 2 // Medium
 
 ControlPoint POINTS[] = {
-	ControlPoint(WAIT, 0, 3000),
-	ControlPoint(CLOCKWISE, HALF, 4000),
-	ControlPoint(WAIT, 0, 10000),
-	ControlPoint(CLOCKWISE, 0, 4000),
-	ControlPoint(WAIT, 0, 3000),
-	ControlPoint(CLOCKWISE, HALF, 4000),
-	ControlPoint(WAIT, 0, 3000),
-	ControlPoint(COUNTER_CLOCKWISE, QUARTER, 2000),
-	ControlPoint(WAIT, 0, 3000),
-	ControlPoint(CLOCKWISE, HALF, 2000),
-	ControlPoint(WAIT, 0, 34000),
+	ControlPoint(WAIT, 0, 3000ul),
+	ControlPoint(CLOCKWISE, HALF, 4000ul),
+	ControlPoint(WAIT, 0, 10000ul),
+	ControlPoint(CLOCKWISE, 0, 4000ul),
+	ControlPoint(WAIT, 0, 3000ul),
+	ControlPoint(CLOCKWISE, HALF, 4000ul),
+	ControlPoint(WAIT, 0, 3000ul),
+	ControlPoint(COUNTER_CLOCKWISE, QUARTER, 2000ul),
+	ControlPoint(WAIT, 0, 3000ul),
+	ControlPoint(CLOCKWISE, HALF, 2000ul),
+	ControlPoint(WAIT, 0, 34000ul),
 
-	ControlPoint(CLOCKWISE, 0, 4000),
-	ControlPoint(WAIT, 0, 3000),
-	ControlPoint(CLOCKWISE, HALF, 4000),
-	ControlPoint(WAIT, 0, 10000),
+	ControlPoint(CLOCKWISE, 0, 4000ul),
+	ControlPoint(WAIT, 0, 3000ul),
+	ControlPoint(CLOCKWISE, HALF, 4000ul),
+	ControlPoint(WAIT, 0, 10000ul),
 
-	ControlPoint(CLOCKWISE, 0, 4000),
-	ControlPoint(WAIT, 0, 14000)
+	ControlPoint(CLOCKWISE, 0, 4000ul),
+	ControlPoint(WAIT, 0, 14000ul)
 };
 
 #elif LAMP == 3 // Large
 
 ControlPoint POINTS[] = {
-	ControlPoint(WAIT, 0, 3000),
-	ControlPoint(CLOCKWISE, HALF, 4000),
-	ControlPoint(WAIT, 0, 34000),
+	ControlPoint(WAIT, 0, 3000ul),
+	ControlPoint(CLOCKWISE, HALF, 4000ul),
+	ControlPoint(WAIT, 0, 34000ul),
 
-	ControlPoint(CLOCKWISE, 0, 4000),
-	ControlPoint(WAIT, 0, 3000),
-	ControlPoint(CLOCKWISE, HALF, 4000),
-	ControlPoint(WAIT, 0, 27000),
+	ControlPoint(CLOCKWISE, 0, 4000ul),
+	ControlPoint(WAIT, 0, 3000ul),
+	ControlPoint(CLOCKWISE, HALF, 4000ul),
+	ControlPoint(WAIT, 0, 27000ul),
 
-	ControlPoint(CLOCKWISE, 0, 4000),
-	ControlPoint(WAIT, 0, 10000),
+	ControlPoint(CLOCKWISE, 0, 4000ul),
+	ControlPoint(WAIT, 0, 10000ul),
 
-	ControlPoint(CLOCKWISE, HALF, 4000),
-	ControlPoint(WAIT, 0, 10000),
+	ControlPoint(CLOCKWISE, HALF, 4000ul),
+	ControlPoint(WAIT, 0, 10000ul),
 
-	ControlPoint(CLOCKWISE, 0, 4000)
+	ControlPoint(CLOCKWISE, 0, 4000ul)
 };
 
 #endif

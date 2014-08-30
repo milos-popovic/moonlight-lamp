@@ -10,10 +10,11 @@
 
 // Feature Consts
 #define NON_LINEAR
+#define PULL_DOWN
 
-#define LAMP 0 // Test
+//#define LAMP 0 // Test
 //#define LAMP 1 // SMALL
-//#define LAMP 2 // MEDIUM
+#define LAMP 2 // MEDIUM
 //#define LAMP 3 // LARGE
 
 //#define DEBUG
